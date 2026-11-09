@@ -1,6 +1,7 @@
 # Project brief: Go (baduk) agent comparison
 
 Last updated: 2026-11-09. Status: engine, tic-tac-toe, generic UCT-MCTS, tournament harness and tests built and passing.
+Next work decided: tic-tac-toe ablation (three arms), then 3x3 Go with exact labels, then 5x5 with a large-budget MCTS teacher only. Ablation not started.
 Nothing below is marked "verified" unless it was actually run (see "Verification status").
 
 ## Goal
@@ -166,9 +167,28 @@ tactical test positions, alternating colors, Wilson confidence intervals.
   architecture/positions/hyperparameters, compared; not one mixed net). MCTS labels: 500 sims/position,
   policy = root visit fractions, value = 1 - 2*root.wins/root.visits. Hyperparameters (hidden 128,
   lr 1e-3, batch 64, 100 epochs) are untuned guesses, fixed up front; not to be tuned on the test set.
+- 5x5 teacher (user, 2026-11-09): MCTS with a large simulation budget is the only teacher. An exact
+  5x5 solver is not part of this pipeline (3x3 capture is solved; 5x5 is not, with this engine).
+- Pipeline check before trusting 5x5 labels (user, 2026-11-09): run the same data -> train -> exact-eval
+  shape on 3x3 Go, where exact labels exist. Solver key for Go must be (board, to_play, passes).
+- Tic-tac-toe ablation before that Go work (user, 2026-11-09): one small experiment on the existing
+  exact tooling (harness/exact.py, exact_report, the seeds_ttt metrics). The Go hybrid depends on
+  early-move quality, and the 10-seed run showed shallow-position errors plus diffuse, value-biased
+  MCTS labels there. Three arms, each against the current MCTS-label setup (500 sims, equal position
+  weights, no augmentation):
+  1. sharper MCTS policy targets
+  2. up-weighting shallow positions
+  3. symmetry augmentation
+  Whether any arm changes exact P(loss to a perfect opponent) is untested. Held-out optimal-move rate
+  is recorded too, and is not the success metric (it ranked the label sources backwards).
 
 ## OPEN decisions
-None currently. (Superko, passing, komi, board size resolved 2026-11-09; see "Decisions made".)
+- The numbers for that plan are not chosen. Do not fill them in silently:
+  - 5x5 simulations per position ("large").
+  - What "sharper" means for an MCTS target (temperature on visit counts, argmax, or more sims) and its value.
+  - The shallow-position weight, and which plies count as shallow.
+  - How symmetry augmentation enters the loss (the 8 copies already exist as SYMS). The symmetry-class
+    split must still keep every symmetric copy of a test position out of train.
 
 ## Claims made in earlier chat that are NOT yet verified
 - That 5x5 Go (and possibly Atari Go on small boards) is solved / exact ground truth is available. (Probe above:
@@ -178,9 +198,11 @@ None currently. (Superko, passing, komi, board size resolved 2026-11-09; see "De
 - That public 9x9 game-record datasets and a fast Python MCTS (with numba) are adequate.
 
 ## Next steps
-0. NEXT GAME DECIDED: Go (user, 2026-11-09). Tic-tac-toe multi-seed experiment DONE (see Verification status).
-   Go plan and two open questions are in the chat (label source without an exact solver; whether to run a
-   tic-tac-toe ablation first).
-1. Tighten test_net.py thresholds from real numbers (user's runs).
-2. Then Connect-4 or Go (network on a harder game), then hybrid PUCT.
-3. Speed work: avoid copying the full superko history per node (e.g. Zobrist hashes).
+0. Tic-tac-toe ablation, three arms listed under Decisions. Same exact report as exact_ttt / seeds_ttt.
+   NOT STARTED. Blocked on the open numeric settings above.
+1. 3x3 Go capture: enumerate positions, exact labels, train, compare to those labels with the exact tools.
+   NOT STARTED. Assumes the ablation's training changes are either adopted or explicitly left out.
+2. 5x5 capture: MCTS labels at the chosen large budget are the only teacher. NOT STARTED.
+3. Hybrid PUCT after that teacher exists.
+4. Tighten test_net.py thresholds from real numbers (user's runs).
+5. Speed work: avoid copying the full superko history per node (e.g. Zobrist hashes).
