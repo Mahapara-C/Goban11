@@ -1,0 +1,4 @@
+pytest
+torch   # needed for nn/, agents/net_agent.py, tests/test_net.py (that file is skipped if torch is absent)
+# optional, only for tests/crosscheck_openspiel.py:
+# open_spiel
